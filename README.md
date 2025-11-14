@@ -1,0 +1,202 @@
+# 🛒 Zepto E-commerce SQL Data Analyst Portfolio Project
+This is a complete, real-world data analyst portfolio project based on an e-commerce inventory dataset scraped from [Zepto](https://www.zeptonow.com/) — one of India’s fastest-growing quick-commerce startups. This project simulates real analyst workflows, from raw data exploration to business-focused data analysis.
+
+This project is perfect for:
+- 📊 Data Analyst aspirants who want to build a strong **Portfolio Project** for interviews and LinkedIn
+- 📚 Anyone learning SQL hands-on
+- 💼 Preparing for interviews in retail, e-commerce, or product analytics
+
+  
+## 📌 Project Overview
+
+The goal is to simulate how actual data analysts in the e-commerce or retail industries work behind the scenes to use SQL to:
+
+✅ Set up a messy, real-world e-commerce inventory **database**
+
+✅ Perform **Exploratory Data Analysis (EDA)** to explore product categories, availability, and pricing inconsistencies
+
+✅ Implement **Data Cleaning** to handle null values, remove invalid entries, and convert pricing from paise to rupees
+
+✅ Write **business-driven SQL queries** to derive insights around **pricing, inventory, stock availability, revenue** and more
+
+## 📁 Dataset Overview
+The dataset was sourced from [Kaggle](https://www.kaggle.com/datasets/palvinder2006/zepto-inventory-dataset/data?select=zepto_v2.csv) and was originally scraped from Zepto’s official product listings. It mimics what you’d typically encounter in a real-world e-commerce inventory system.
+
+Each row represents a unique SKU (Stock Keeping Unit) for a product. Duplicate product names exist because the same product may appear multiple times in different package sizes, weights, discounts, or categories to improve visibility – exactly how real catalog data looks.
+
+🧾 Columns:
+- **sku_id:** Unique identifier for each product entry (Synthetic Primary Key)
+
+- **name:** Product name as it appears on the app
+
+- **category:** Product category like Fruits, Snacks, Beverages, etc.
+
+- **mrp:** Maximum Retail Price (originally in paise, converted to ₹)
+
+- **discountPercent:** Discount applied on MRP
+
+- **discountedSellingPrice:** Final price after discount (also converted to ₹)
+
+- **availableQuantity:** Units available in inventory
+
+- **weightInGms:** Product weight in grams
+
+- **outOfStock:** Boolean flag indicating stock availability
+
+- **quantity:** Number of units per package (mixed with grams for loose produce)
+
+## 🔧 Project Workflow
+
+Here’s a step-by-step breakdown of what we do in this project:
+
+### 1. Database & Table Creation
+We start by creating a SQL table with appropriate data types:
+
+```sql
+CREATE TABLE zepto (
+  sku_id SERIAL PRIMARY KEY,
+  category VARCHAR(120),
+  name VARCHAR(150) NOT NULL,
+  mrp NUMERIC(8,2),
+  discountPercent NUMERIC(5,2),
+  availableQuantity INTEGER,
+  discountedSellingPrice NUMERIC(8,2),
+  weightInGms INTEGER,
+  outOfStock BOOLEAN,
+  quantity INTEGER
+);
+```
+
+### 2. Data Import
+- Loaded CSV using pgAdmin's import feature.
+
+ - If you're not able to use the import feature, write this code instead:
+```sql
+   \copy zepto(category,name,mrp,discountPercent,availableQuantity,
+            discountedSellingPrice,weightInGms,outOfStock,quantity)
+  FROM 'data/zepto_v2.csv' WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ENCODING 'UTF8');
+```
+- Faced encoding issues (UTF-8 error), which were fixed by saving the CSV file using CSV UTF-8 format.
+
+### 3. 🔍 Data Exploration
+- Counted the total number of records in the dataset
+
+- Viewed a sample of the dataset to understand structure and content
+
+- Checked for null values across all columns
+
+- Identified distinct product categories available in the dataset
+
+- Compared in-stock vs out-of-stock product counts
+
+- Detected products present multiple times, representing different SKUs
+
+### 4. 🧹 Data Cleaning
+- Identified and removed rows where MRP or discounted selling price was zero
+
+- Converted mrp and discountedSellingPrice from paise to rupees for consistency and readability
+  
+### 5. 📊 Business Insights
+- Found top 10 best-value products based on discount percentage
+  ```sql
+  SELECT 
+	DISTINCT name,
+	mrp,
+	discountpercent
+  FROM
+  	zepto
+  ORDER BY 
+  	discountpercent DESC
+  LIMIT  10;
+  ```
+
+- Identified high-MRP products that are currently out of stock
+```sql
+SELECT 
+	DISTINCT name,
+	mrp
+FROM zepto
+WHERE 
+	outofstock = TRUE and mrp >300
+ORDER BY 
+	mrp DESC;
+```
+- Estimated potential revenue for each product category
+```sql
+
+SELECT 
+	 category,
+	 sum(discountedsellingprice * availablequantity) AS total_revenue
+FROM 
+	zepto
+GROUP BY category
+ORDER BY total_revenue;
+```
+
+- Filtered expensive products (MRP > ₹500) with minimal discount
+ ```sql
+select 
+	distinct name,
+	mrp,
+	discountpercent
+from
+	zepto
+where
+	mrp > 500 AND discountpercent < 10
+order by
+	mrp desc,
+	discountpercent desc;
+```    
+
+- Ranked top 5 categories offering highest average discounts
+```sql
+select 
+	category,
+	round(avg(discountpercent),2)AS discount_price	
+from 
+	zepto
+group by 
+	category
+order by 
+	discount_price DESC
+limit 5;
+
+```
+- Calculated price per gram to identify value-for-money products
+```sql
+select
+	distinct name,
+	weightingms,
+	discountedsellingprice,
+	round(discountedsellingprice/weightingms,2) AS price_per_gram
+from zepto
+where weightingms >= 100
+order by price_per_gram ;
+```
+- Grouped products based on weight into Low, Medium, and Bulk categories
+```sql
+select 
+	distinct name,
+	weightingms,
+	CASE WHEN weightingms < 1000 then 'low'
+	     WHEN weightingms < 5000 then 'medium'
+		 ELSE 'bulk'
+		 END AS weight_in_grams
+from 
+	zepto
+order by 
+	weightingms desc;
+
+```
+- Measured total inventory weight per product category
+```sql
+select 
+	category,
+	sum(weightingms * availablequantity) as total_weight
+from 
+	zepto
+group by 
+	category
+order by 
+	total_weight;
+```
